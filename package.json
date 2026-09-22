@@ -1,0 +1,9 @@
+{
+  "name": "arotiana-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix Arotiana run dev",
+    "build": "npm --prefix Arotiana run build",
+    "preview": "npm --prefix Arotiana run preview"
+  }
+}
