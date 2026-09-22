@@ -4,6 +4,10 @@
   "scripts": {
     "dev": "npm --prefix Arotiana run dev",
     "build": "npm --prefix Arotiana run build",
-    "preview": "npm --prefix Arotiana run preview"
+    "preview": "npm --prefix Arotiana run preview",
+    "backend:dev": "npm --prefix backend run dev",
+    "backend:build": "npm --prefix backend run build",
+    "backend:start": "npm --prefix backend start",
+    "backend:test": "npm --prefix backend test"
   }
 }

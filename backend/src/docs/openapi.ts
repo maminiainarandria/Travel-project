@@ -1,0 +1,42 @@
+export const openApiDocument = {
+  openapi: '3.0.0',
+  info: {
+    title: 'Arotiana Lemurs Travel API',
+    version: '1.0.0',
+    description: 'REST API for the Arotiana Lemurs Travel backend.',
+  },
+  servers: [{ url: 'http://localhost:4000/api' }],
+  tags: [
+    { name: 'Auth' },
+    { name: 'Destinations' },
+    { name: 'Experiences' },
+    { name: 'Journeys' },
+    { name: 'Bookings' },
+    { name: 'Custom Trips' },
+    { name: 'Contact' },
+    { name: 'Articles' },
+    { name: 'Admin' },
+    { name: 'Users' },
+  ],
+  components: {
+    securitySchemes: {
+      bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+    },
+  },
+  paths: {
+    '/auth/register': { post: { tags: ['Auth'], summary: 'Register a new user' } },
+    '/auth/login': { post: { tags: ['Auth'], summary: 'Login and receive a JWT' } },
+    '/auth/me': { get: { tags: ['Auth'], security: [{ bearerAuth: [] }], summary: 'Get current authenticated user' } },
+    '/destinations': { get: { tags: ['Destinations'], summary: 'List destinations with pagination and filters' }, post: { tags: ['Destinations'], security: [{ bearerAuth: [] }], summary: 'Create destination as admin' } },
+    '/destinations/{id}': { get: { tags: ['Destinations'], summary: 'Get destination by id' }, put: { tags: ['Destinations'], security: [{ bearerAuth: [] }], summary: 'Update destination as admin' }, delete: { tags: ['Destinations'], security: [{ bearerAuth: [] }], summary: 'Delete destination as admin' } },
+    '/experiences': { get: { tags: ['Experiences'], summary: 'List experiences with filters' }, post: { tags: ['Experiences'], security: [{ bearerAuth: [] }], summary: 'Create experience as admin' } },
+    '/journeys': { get: { tags: ['Journeys'], summary: 'List journeys including itineraries' }, post: { tags: ['Journeys'], security: [{ bearerAuth: [] }], summary: 'Create journey as admin' } },
+    '/bookings': { get: { tags: ['Bookings'], security: [{ bearerAuth: [] }], summary: 'List own bookings or all as admin' }, post: { tags: ['Bookings'], security: [{ bearerAuth: [] }], summary: 'Create booking' } },
+    '/custom-trips': { get: { tags: ['Custom Trips'], security: [{ bearerAuth: [] }], summary: 'List custom trip requests as admin' }, post: { tags: ['Custom Trips'], summary: 'Create custom trip request' } },
+    '/contact': { get: { tags: ['Contact'], security: [{ bearerAuth: [] }], summary: 'List contact messages as admin' }, post: { tags: ['Contact'], summary: 'Create contact message' } },
+    '/articles': { get: { tags: ['Articles'], summary: 'List articles' }, post: { tags: ['Articles'], security: [{ bearerAuth: [] }], summary: 'Create article as admin' } },
+    '/admin/dashboard': { get: { tags: ['Admin'], security: [{ bearerAuth: [] }], summary: 'Get admin dashboard statistics' } },
+    '/users': { get: { tags: ['Users'], security: [{ bearerAuth: [] }], summary: 'List users as admin' } },
+    '/users/{id}': { get: { tags: ['Users'], security: [{ bearerAuth: [] }], summary: 'Get user as admin' }, put: { tags: ['Users'], security: [{ bearerAuth: [] }], summary: 'Update user as admin' }, delete: { tags: ['Users'], security: [{ bearerAuth: [] }], summary: 'Delete user as admin' } },
+  },
+};

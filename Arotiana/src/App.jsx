@@ -1,6 +1,5 @@
-function HeroVideoSequence() { return <div className="video-wrap" aria-hidden="true"><video className="hero-video" autoPlay muted loop playsInline preload="auto" poster={heroImage}><source src="/assets/tsingy-bemaraha.mp4" type="video/mp4" /></video></div>; }
-
 import { useEffect, useState } from 'react';
+import { apiRequest } from './config/api.js';
 
 const commonsImage = (file, width = 1600) => `https://images.weserv.nl/?url=${encodeURIComponent(`https://commons.wikimedia.org/wiki/Special:FilePath/${file}`)}&w=${width}&output=jpg`;
 const source = (file, description) => ({ imageSource: 'Wikimedia Commons', imageAuthor: 'See Commons file page', imageLicense: 'License listed on the Commons file page', imageSourceUrl: `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(file.replaceAll(' ', '_'))}`, imageDescription: description });
@@ -84,6 +83,8 @@ const heroImage = siteImages.homeHero.image;
 const rainforestImage = siteImages.homeStory.image;
 const communityImage = siteImages.contactHero.image;
 const masoalaImage = siteImages.conservation.image;
+
+function HeroVideoSequence() { return <div className="video-wrap" aria-hidden="true"><video className="hero-video" autoPlay muted loop playsInline preload="auto" poster={heroImage}><source src="/assets/tsingy-bemaraha.mp4" type="video/mp4" /></video></div>; }
 const destinations = [
   { slug: 'andasibe', name: 'Andasibe', kicker: 'Rainforest / Eastern Madagascar', description: 'Mossy forests, indri calls and intimate encounters with Madagascar’s most charismatic wildlife.', ...siteImages.destinations.andasibe },
   { slug: 'ranomafana', name: 'Ranomafana', kicker: 'Cloud forest / Highlands', description: 'A lush sanctuary where rare species hide beneath a canopy of ferns and orchids.', ...siteImages.destinations.ranomafana },
@@ -114,8 +115,173 @@ const articles = [
   { slug: 'responsible-travel', category: 'Our approach', date: '18 March 2026', title: 'A more responsible way to travel Madagascar', ...siteImages.articles.responsible },
 ];
 
+function imageWithFallback(primary, fallback) {
+  return primary || fallback?.image || siteImages.destinationsHero.image;
+}
+
+function destinationImageFor(slug, index = 0) {
+  const key = slug === 'nosy-be' ? 'nosyBe' : slug;
+  return siteImages.destinations[key] || siteImages.homeDestinations[index % siteImages.homeDestinations.length] || siteImages.destinationsHero;
+}
+
+function experienceImageFor(slug, index = 0) {
+  const images = {
+    'lemur-watching': siteImages.experiences.lemur,
+    trekking: siteImages.experiences.trekking,
+    photography: siteImages.experiences.photography,
+    'wildlife-photography': siteImages.experiences.photography,
+    culture: siteImages.experiences.culture,
+    'cultural-discovery': siteImages.experiences.culture,
+    'community-tourism': siteImages.experiences.culture,
+    'family-journeys': siteImages.experiences.family,
+    'family-adventure': siteImages.experiences.family,
+    'ocean-escape': siteImages.experiences.ocean,
+    'luxury-escape': siteImages.experiences.ocean,
+    birdwatching: siteImages.experiences.lemur,
+  };
+  return images[slug] || siteImages.homeExperiences[index % siteImages.homeExperiences.length] || siteImages.experiencesHero;
+}
+
+function journeyImageFor(slug, index = 0) {
+  const images = {
+    'ultimate-madagascar': siteImages.journeys.ultimate,
+    'the-ultimate-madagascar-journey': siteImages.journeys.ultimate,
+    'rainforest-and-baobabs': siteImages.journeys.ultimate,
+    'island-and-inland': siteImages.journeys.island,
+    'wild-south': siteImages.journeys.wildSouth,
+    'wild-south-expedition': siteImages.journeys.wildSouth,
+  };
+  return images[slug] || Object.values(siteImages.journeys)[index % Object.values(siteImages.journeys).length] || siteImages.journeysHero;
+}
+
+function formatArticleDate(value, fallback = '') {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+}
+
+function formatPrice(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0 ? `From $${amount.toLocaleString('en-US')}` : 'Tailor-made';
+}
+
+function mapDestination(item, index = 0) {
+  const fallback = destinations.find((entry) => entry.slug === item.slug || entry.name === item.name);
+  const localImage = destinationImageFor(item.slug || fallback?.slug, index);
+  return {
+    ...(fallback || {}),
+    ...item,
+    slug: item.slug || fallback?.slug || `destination-${index + 1}`,
+    name: item.name || fallback?.name || 'Madagascar',
+    kicker: item.kicker || [item.region || fallback?.region || 'Madagascar', item.featured ? 'Featured' : 'Tailor-made'].join(' / '),
+    description: item.shortDescription || item.description || fallback?.description || '',
+    fullDescription: item.description || fallback?.fullDescription || fallback?.description || '',
+    image: imageWithFallback(item.image, fallback || localImage),
+  };
+}
+
+function mapExperience(item, index = 0) {
+  const fallback = experiences.find((entry) => entry.slug === item.slug || entry.title === item.name);
+  const localImage = experienceImageFor(item.slug || fallback?.slug, index);
+  return {
+    ...(fallback || {}),
+    ...item,
+    slug: item.slug || fallback?.slug || `experience-${index + 1}`,
+    title: item.title || item.name || fallback?.title || 'Madagascar experience',
+    label: item.label || item.category || fallback?.label || 'Experience',
+    description: item.description || fallback?.description || '',
+    type: item.category || fallback?.type,
+    image: imageWithFallback(item.image, fallback || localImage),
+  };
+}
+
+function mapJourney(item, index = 0) {
+  const fallback = journeys.find((entry) => entry.slug === item.slug || entry.title === item.title);
+  const localImage = journeyImageFor(item.slug || fallback?.slug, index);
+  const locations = Array.isArray(item.itineraries) ? item.itineraries.map((step) => step.location).filter(Boolean) : [];
+  return {
+    ...(fallback || {}),
+    ...item,
+    slug: item.slug || fallback?.slug || `journey-${index + 1}`,
+    title: item.title || fallback?.title || 'Madagascar journey',
+    days: item.days || (item.duration ? `${item.duration} days` : fallback?.days || 'Tailor-made'),
+    type: item.type || locations.slice(0, 3).join(' / ') || formatPrice(item.priceFrom),
+    description: item.shortDescription || item.description || fallback?.description || '',
+    fullDescription: item.description || fallback?.fullDescription || fallback?.description || '',
+    image: imageWithFallback(item.image, fallback || localImage),
+  };
+}
+
+function mapArticle(item, index = 0) {
+  const fallback = articles.find((entry) => entry.slug === item.slug || entry.title === item.title);
+  const localImages = Object.values(siteImages.articles);
+  return {
+    ...(fallback || {}),
+    ...item,
+    slug: item.slug || fallback?.slug || `article-${index + 1}`,
+    title: item.title || fallback?.title || 'Madagascar travel story',
+    category: item.category || fallback?.category || 'Journal',
+    date: item.date || formatArticleDate(item.publishedAt || item.createdAt, fallback?.date),
+    excerpt: item.excerpt || fallback?.excerpt,
+    content: item.content || fallback?.content,
+    image: imageWithFallback(item.image, fallback || localImages[index % localImages.length]),
+  };
+}
+
+function mapApiList(response, mapper, fallbackItems) {
+  const items = Array.isArray(response?.data) ? response.data : [];
+  return items.length ? items.map(mapper) : fallbackItems;
+}
+
+const fallbackData = {
+  destinations: destinations.map(mapDestination),
+  experiences: experiences.map(mapExperience),
+  journeys: journeys.map(mapJourney),
+  articles: articles.map(mapArticle),
+  testimonials: [{ content: 'Madagascar felt like a world we had never seen before. Arotiana gave us the space to be surprised by it, and the care to experience it well.', name: 'Elise & Thomas', country: 'France' }],
+};
+
 const homeDestinations = destinations.map((item, index) => ({ ...item, ...siteImages.homeDestinations[index] }));
 const homeExperiences = experiences.slice(0, 3).map((item, index) => ({ ...item, ...siteImages.homeExperiences[index] }));
+
+function useTravelData() {
+  const [data, setData] = useState(fallbackData);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadData() {
+      try {
+        const [destinationResponse, experienceResponse, journeyResponse, articleResponse, testimonialResponse] = await Promise.all([
+          apiRequest('/destinations?limit=20&sortBy=name&sortOrder=asc'),
+          apiRequest('/experiences?limit=20&sortBy=name&sortOrder=asc'),
+          apiRequest('/journeys?limit=20'),
+          apiRequest('/articles?published=true&limit=20'),
+          apiRequest('/testimonials'),
+        ]);
+
+        if (!active) return;
+        setData({
+          destinations: mapApiList(destinationResponse, mapDestination, fallbackData.destinations),
+          experiences: mapApiList(experienceResponse, mapExperience, fallbackData.experiences),
+          journeys: mapApiList(journeyResponse, mapJourney, fallbackData.journeys),
+          articles: mapApiList(articleResponse, mapArticle, fallbackData.articles),
+          testimonials: mapApiList(testimonialResponse, (item) => item, fallbackData.testimonials),
+        });
+      } catch (error) {
+        console.warn('Arotiana API unavailable, using local fallback data.', error);
+      }
+    }
+
+    loadData();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return data;
+}
 
 function navigate(path) {
   window.history.pushState({}, '', path);
@@ -152,7 +318,18 @@ function Footer() { return <footer className="site-footer"><div className="foote
 
 function ImageHero({ eyebrow, title, imageUrl, children }) { return <section className="page-hero"><img className="page-hero-image" src={imageUrl} alt="" /><div className="page-hero-shade" /><div className="page-hero-copy"><p className="eyebrow"><i />{eyebrow}</p><h1 dangerouslySetInnerHTML={{ __html: title }} />{children}</div></section>; }
 
-function Home() { return <><section className="home-hero"><HeroVideoSequence /><div className="hero-shade" /><div className="home-hero-copy"><p className="eyebrow"><i /> A journey into the extraordinary</p><h1>Explore Madagascar<br /><em>differently.</em></h1><p>Authentic journeys into Madagascar’s wildlife, landscapes and cultures.</p><div className="hero-buttons"><Button href="/destinations">Explore Madagascar</Button><Button href="/custom-trip" secondary>Plan your journey</Button></div></div><div className="hero-scroll">Scroll to explore <span>↓</span></div></section><main><section className="story-section split-section"><div className="story-image image-frame"><img src={rainforestImage} alt="Andasibe rainforest in Madagascar" /></div><div><SectionTitle eyebrow="The Arotiana way" title="Discover the Madagascar <em>beyond the usual journey.</em>" intro="We design unhurried, deeply personal journeys that bring you closer to the island’s rare wildlife, remarkable landscapes and generous communities." /><Button href="/about" secondary>Our story</Button></div></section><section className="destination-section section-pad"><SectionTitle eyebrow="Places with a pulse" title="Discover <em>Madagascar.</em>" intro="Every region has its own rhythm. Find the one that speaks to you." /><div className="destination-grid">{homeDestinations.map((item, index) => <DestinationCard key={item.slug} item={item} featured={index === 0} />)}</div><div className="section-action"><Button href="/destinations" secondary>View all destinations</Button></div></section><section className="experience-band"><div><SectionTitle light eyebrow="Make it yours" title="Travel by <em>experience.</em>" intro="Go looking for lemurs. Follow the light. Taste the island. Your Madagascar is yours to shape." /><Button href="/experiences">Explore experiences</Button></div><div className="experience-mosaic">{homeExperiences.map((item) => <ExperienceCard key={item.slug} item={item} />)}</div></section><FeaturedJourney /><WhyArotiana /><Conservation /><JournalPreview /><Testimonials /><Newsletter /></main></>; }
+function Home() { return <><section className="home-hero"><HeroVideoSequence /><div className="hero-shade" /><div className="home-hero-copy"><p className="eyebrow"><i /> A journey into the extraordinary</p><h1>Explore Madagascar<br /><em>differently.</em></h1><p>Authentic journeys into Madagascar’s wildlife, landscapes and cultures.</p><div className="hero-buttons"><Button href="/destinations">Explore Madagascar</Button><Button href="/custom-trip" secondary>Plan your journey</Button></div></div><div className="hero-scroll">Scroll to explore <span>↓</span></div></section><main><section className="story-section split-section"><div className="story-image image-frame"><img src={rainforestImage} alt="Andasibe rainforest in Madagascar" /></div><div><SectionTitle eyebrow="The Arotiana way" title="Discover the Madagascar <em>beyond the usual journey.</em>" intro="We design unhurried, deeply personal journeys that bring you closer to the island’s rare wildlife, remarkable landscapes and generous communities." /><Button href="/about" secondary>Our story</Button></div></section><HomeDetails /><section className="destination-section section-pad"><SectionTitle eyebrow="Places with a pulse" title="Discover <em>Madagascar.</em>" intro="Every region has its own rhythm. Find the one that speaks to you." /><div className="destination-grid">{homeDestinations.map((item, index) => <DestinationCard key={item.slug} item={item} featured={index === 0} />)}</div><div className="section-action"><Button href="/destinations" secondary>View all destinations</Button></div></section><section className="experience-band"><div><SectionTitle light eyebrow="Make it yours" title="Travel by <em>experience.</em>" intro="Go looking for lemurs. Follow the light. Taste the island. Your Madagascar is yours to shape." /><Button href="/experiences">Explore experiences</Button></div><div className="experience-mosaic">{homeExperiences.map((item) => <ExperienceCard key={item.slug} item={item} />)}</div></section><FeaturedJourney /><WhyArotiana /><Conservation /><JournalPreview /><Testimonials /><Newsletter /></main></>; }
+
+function HomeDetails() {
+  const details = [
+    ['Tailor-made routes', 'Every itinerary is shaped around your dates, travel pace, interests and comfort level.'],
+    ['Local guiding', 'Travel with trusted guides who understand wildlife, culture and the rhythm of each region.'],
+    ['Flexible journeys', 'Choose rainforest, baobabs, coast, trekking, family travel or a full Madagascar circuit.'],
+  ];
+  const stats = [['8-14', 'days suggested'], ['6', 'signature regions'], ['100%', 'custom planning']];
+
+  return <section className="home-details section-pad"><div className="home-details-copy"><p className="eyebrow"><i /> Home details</p><h2>A clear path to your <em>Madagascar journey.</em></h2><p>Arotiana Lemurs Travel helps visitors move from inspiration to a real plan: where to go, how long to stay, what to expect and how to travel responsibly.</p><Button href="/custom-trip">Start planning</Button></div><div className="home-details-panel"><div className="home-details-stats">{stats.map(([value, label]) => <span key={label}><b>{value}</b>{label}</span>)}</div>{details.map(([title, text], index) => <article key={title}><span>{String(index + 1).padStart(2, '0')}</span><div><h3>{title}</h3><p>{text}</p></div></article>)}</div></section>;
+}
 
 function DestinationCard({ item, featured = false }) { return <article className={`destination-card ${featured ? 'featured' : ''}`}><img src={item.image} alt={item.name} /><div className="card-shade" /><div className="card-content"><p>{item.kicker}</p><h3>{item.name}</h3><span>{item.description}</span><Link href={`/destinations/${item.slug}`}>Explore <Arrow /></Link></div></article>; }
 function ExperienceCard({ item }) { return <article className="experience-card"><img src={item.image} alt={item.title} /><div className="card-shade" /><div className="experience-content"><small>{item.label}</small><h3>{item.title}</h3><Link href={`/experiences/${item.slug}`} aria-label={`Discover ${item.title}`}><Arrow /></Link></div></article>; }
@@ -178,4 +355,254 @@ function Contact({ custom = false }) { const [sent, setSent] = useState(false); 
 
 function App() { const [path, setPath] = useState(window.location.pathname); useEffect(() => { const onPop = () => setPath(window.location.pathname); window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop); }, []); let content; const match = path.match(/^\/(destinations|experiences|journeys)\/([^/]+)$/); const articleMatch = path.match(/^\/journal\/([^/]+)$/); if (path === '/') content = <Home />; else if (path === '/destinations' || path === '/experiences' || path === '/journeys') content = <ListingPage type={path.slice(1)} />; else if (match) content = <DetailPage type={match[1]} slug={match[2]} />; else if (path === '/about') content = <About />; else if (path === '/journal') content = <Journal />; else if (articleMatch) content = <ArticlePage slug={articleMatch[1]} />; else if (path === '/contact') content = <Contact />; else if (path === '/custom-trip') content = <Contact custom />; else content = <Home />; return <><Navbar />{content}<Footer /></>; }
 
-export default App;
+function ConnectedHome({ data }) {
+  const homeDestinations = data.destinations.slice(0, 4);
+  const homeExperiences = data.experiences.slice(0, 3);
+  const featuredJourney = data.journeys.find((item) => item.featured) || data.journeys[0];
+
+  return (
+    <>
+      <section className="home-hero">
+        <HeroVideoSequence />
+        <div className="hero-shade" />
+        <div className="home-hero-copy">
+          <p className="eyebrow"><i /> A journey into the extraordinary</p>
+          <h1>Explore Madagascar<br /><em>differently.</em></h1>
+          <p>Authentic journeys into Madagascar's wildlife, landscapes and cultures.</p>
+          <div className="hero-buttons">
+            <Button href="/destinations">Explore Madagascar</Button>
+            <Button href="/custom-trip" secondary>Plan your journey</Button>
+          </div>
+        </div>
+        <div className="hero-scroll">Scroll to explore <span>↓</span></div>
+      </section>
+      <main>
+        <section className="story-section split-section">
+          <div className="story-image image-frame"><img src={rainforestImage} alt="Andasibe rainforest in Madagascar" /></div>
+          <div>
+            <SectionTitle eyebrow="The Arotiana way" title="Discover the Madagascar <em>beyond the usual journey.</em>" intro="We design unhurried, deeply personal journeys that bring you closer to the island's rare wildlife, remarkable landscapes and generous communities." />
+            <Button href="/about" secondary>Our story</Button>
+          </div>
+        </section>
+        <HomeDetails />
+        <section className="destination-section section-pad">
+          <SectionTitle eyebrow="Places with a pulse" title="Discover <em>Madagascar.</em>" intro="Every region has its own rhythm. Find the one that speaks to you." />
+          <div className="destination-grid">{homeDestinations.map((item, index) => <DestinationCard key={item.slug} item={item} featured={index === 0 || item.featured} />)}</div>
+          <div className="section-action"><Button href="/destinations" secondary>View all destinations</Button></div>
+        </section>
+        <section className="experience-band">
+          <div>
+            <SectionTitle light eyebrow="Make it yours" title="Travel by <em>experience.</em>" intro="Go looking for lemurs. Follow the light. Taste the island. Your Madagascar is yours to shape." />
+            <Button href="/experiences">Explore experiences</Button>
+          </div>
+          <div className="experience-mosaic">{homeExperiences.map((item) => <ExperienceCard key={item.slug} item={item} />)}</div>
+        </section>
+        <ConnectedFeaturedJourney journey={featuredJourney} />
+        <WhyArotiana />
+        <Conservation />
+        <ConnectedJournalPreview articles={data.articles} />
+        <ConnectedTestimonials testimonials={data.testimonials} />
+        <Newsletter />
+      </main>
+    </>
+  );
+}
+
+function ConnectedFeaturedJourney({ journey }) {
+  const selected = journey || fallbackData.journeys[0];
+  const stopCount = Array.isArray(selected.itineraries) && selected.itineraries.length ? selected.itineraries.length : '4+';
+  const dayCount = selected.duration || String(selected.days || '').replace(/\D/g, '') || '10';
+
+  return (
+    <section className="featured-journey section-pad">
+      <div className="featured-journey-image"><img src={selected.image || siteImages.featuredJourney.image} alt={selected.title} /></div>
+      <div>
+        <p className="eyebrow"><i /> Featured journey</p>
+        <h2>{selected.title}<br /><em>journey.</em></h2>
+        <p>{selected.fullDescription || selected.description}</p>
+        <div className="journey-facts">
+          <span><b>{dayCount}</b> days</span>
+          <span><b>{stopCount}</b> stops</span>
+          <span><b>{formatPrice(selected.priceFrom).replace('From ', '')}</b> from</span>
+        </div>
+        <Button href={`/journeys/${selected.slug}`}>Discover this journey</Button>
+      </div>
+    </section>
+  );
+}
+
+function ConnectedJournalPreview({ articles: currentArticles }) {
+  const previewArticles = (currentArticles.length ? currentArticles : fallbackData.articles).slice(0, 3);
+  return <section className="journal-section section-pad"><SectionTitle eyebrow="From the journal" title="Madagascar, <em>in stories.</em>" intro="Notes, field guides and thoughtful ways to travel closer to the island." /><div className="article-grid">{previewArticles.map((article) => <ArticleCard key={article.slug} article={article} />)}</div><div className="section-action"><Button href="/journal" secondary>Visit the journal</Button></div></section>;
+}
+
+function ConnectedTestimonials({ testimonials }) {
+  const testimonial = testimonials?.[0] || fallbackData.testimonials[0];
+  return <section className="testimonial-section"><div className="quote-mark">“</div><blockquote>{testimonial.content}</blockquote><p>— {testimonial.name}{testimonial.country ? `, ${testimonial.country}` : ''}</p></section>;
+}
+
+function ConnectedListingPage({ type, data }) {
+  const isDest = type === 'destinations';
+  const items = isDest ? data.destinations : type === 'experiences' ? data.experiences : data.journeys;
+  const listingHeroImage = isDest ? siteImages.destinationsHero.image : type === 'experiences' ? siteImages.experiencesHero.image : siteImages.journeysHero.image;
+  return <><ImageHero eyebrow={isDest ? 'The island, region by region' : type === 'experiences' ? 'Ways to travel deeper' : 'Journeys made around you'} title={isDest ? 'Find your <em>Madagascar.</em>' : type === 'experiences' ? 'Travel by <em>experience.</em>' : 'Journeys with <em>meaning.</em>'} imageUrl={listingHeroImage}><p>Thoughtfully designed routes, shaped by the character of this remarkable island.</p></ImageHero><main className="listing-page section-pad"><SectionTitle eyebrow={isDest ? 'Explore the island' : 'Choose your pace'} title={isDest ? 'Places that stay <em>with you.</em>' : 'Start with what <em>moves you.</em>'} /><div className={`listing-grid ${type}`}>{items.map((item) => isDest ? <DestinationCard key={item.slug} item={item} /> : type === 'experiences' ? <ExperienceCard key={item.slug} item={item} /> : <JourneyCard key={item.slug} item={item} />)}</div></main></>;
+}
+
+function galleryImagesFor(type, item) {
+  if (type === 'destinations') {
+    const destinationKey = item.slug === 'nosy-be' ? 'nosyBe' : item.slug;
+    const gallery = siteImages.galleries[destinationKey];
+    return gallery ? gallery.map((entry) => entry.image) : [item.image, destinationImageFor(item.slug).image, siteImages.destinationsHero.image];
+  }
+
+  if (type === 'experiences') {
+    const galleryKeys = {
+      'lemur-watching': 'lemur',
+      trekking: 'trekking',
+      photography: 'photography',
+      'wildlife-photography': 'photography',
+      culture: 'culture',
+      'cultural-discovery': 'culture',
+      'community-tourism': 'culture',
+      'family-journeys': 'family',
+      'family-adventure': 'family',
+      'ocean-escape': 'ocean',
+      'luxury-escape': 'ocean',
+      birdwatching: 'lemur',
+    };
+    const gallery = siteImages.experienceGalleries[galleryKeys[item.slug]];
+    return gallery ? gallery.map((entry) => entry.image) : [item.image, experienceImageFor(item.slug).image, siteImages.experiencesHero.image];
+  }
+
+  const journeyKeys = {
+    'ultimate-madagascar': 'ultimate',
+    'the-ultimate-madagascar-journey': 'ultimate',
+    'rainforest-and-baobabs': 'ultimate',
+    'island-and-inland': 'island',
+    'wild-south': 'wildSouth',
+    'wild-south-expedition': 'wildSouth',
+  };
+  const gallery = siteImages.journeyGalleries[journeyKeys[item.slug]];
+  return gallery ? gallery.map((entry) => entry.image) : [item.image, journeyImageFor(item.slug).image, siteImages.journeysHero.image];
+}
+
+function detailHeroFor(type, item) {
+  if (type === 'destinations') {
+    const key = item.slug === 'nosy-be' ? 'nosyBe' : item.slug;
+    return siteImages.detailHeroes.destinations[key] || { image: item.image || destinationImageFor(item.slug).image };
+  }
+  if (type === 'experiences') {
+    return siteImages.detailHeroes.experiences[item.slug] || { image: item.image || experienceImageFor(item.slug).image };
+  }
+  return siteImages.detailHeroes.journeys[item.slug] || { image: item.image || journeyImageFor(item.slug).image };
+}
+
+function ConnectedDetailPage({ type, slug, data }) {
+  const source = (type === 'destinations' ? data.destinations : type === 'experiences' ? data.experiences : data.journeys);
+  const item = source.find((entry) => entry.slug === slug) || source[0] || fallbackData[type][0];
+  const isDestination = type === 'destinations';
+  const title = isDestination ? `${item.name}<br /><em>${(item.kicker || 'Madagascar').split(' / ')[0]}.</em>` : item.title;
+  const detailHero = detailHeroFor(type, item);
+  const galleryImages = galleryImagesFor(type, item).filter(Boolean).slice(0, 3);
+  const description = item.fullDescription || item.description;
+
+  return <><ImageHero eyebrow={isDestination ? item.kicker : item.type || item.label || 'Arotiana journey'} title={title} imageUrl={detailHero.image}><p>{description}</p></ImageHero><main className="detail-page"><section className="detail-intro section-pad"><div><p className="eyebrow"><i /> {isDestination ? 'Overview' : 'The experience'}</p><h2>{isDestination ? 'A place to <em>feel fully alive.</em>' : 'Made for the <em>curious.</em>'}</h2></div><div><p>{description} {isDestination ? 'Spend a few days moving at the pace of the forest, with time for quiet observation and unexpected encounters.' : 'Our local guides turn every day into an invitation: to notice more, go further and travel with intention.'}</p><Button href="/custom-trip">Plan this journey</Button></div></section><section className="detail-gallery section-pad">{galleryImages.map((galleryImage) => <img key={galleryImage} src={galleryImage} alt="" />)}</section><section className="detail-facts section-pad"><div><span>01</span><h3>Highlights</h3><p>{isDestination ? 'Endemic wildlife, deep forest walks and the rare privilege of slowing down.' : 'Personal guidance, beautiful places and the freedom to follow your curiosity.'}</p></div><div><span>02</span><h3>Best time to visit</h3><p>April to November offers clear trails, bright days and exceptional wildlife encounters.</p></div><div><span>03</span><h3>Made around you</h3><p>Every Arotiana journey is tailored to your pace, interests and way of seeing.</p></div></section></main><Newsletter /></>;
+}
+
+function ConnectedJournal({ articles: currentArticles }) {
+  const journalArticles = currentArticles.length ? currentArticles : fallbackData.articles;
+  return <><ImageHero eyebrow="Field notes & inspiration" title="The Madagascar<br /><em>travel guide.</em>" imageUrl={siteImages.journalHero.image}><p>Ideas for going further, seeing more and travelling well.</p></ImageHero><main className="listing-page section-pad"><div className="journal-filter"><span>All stories</span><span>Wildlife</span><span>Planning</span><span>Our approach</span></div><div className="article-grid article-list">{journalArticles.map((article) => <ArticleCard key={article.slug} article={article} />)}</div></main></>;
+}
+
+function ConnectedArticlePage({ slug, articles: currentArticles }) {
+  const article = currentArticles.find((entry) => entry.slug === slug) || fallbackData.articles.find((entry) => entry.slug === slug) || currentArticles[0] || fallbackData.articles[0];
+  const heroImageUrl = siteImages.articleHeroes[slug]?.image || article.image || siteImages.journalHero.image;
+  return <><ImageHero eyebrow={`${article.category} · ${article.date}`} title={article.title} imageUrl={heroImageUrl} /><main className="article-page"><p className="article-lede">{article.excerpt || 'Madagascar is best understood slowly: one forest path, one conversation, one unexpected moment at a time.'}</p><div className="article-body"><p>{article.content || `${article.title} is an invitation to look closer. Across this extraordinary island, the journey is never only about arriving. It is about the texture of the road, the people who welcome you and the wildness that remains just beyond the next bend.`}</p><h2>Travel with curiosity</h2><p>Our local partners help turn a destination into a lived experience. They know where the light falls, when the forest wakes and how to make space for moments that cannot be planned.</p><blockquote>“The best journeys leave you with more questions than answers.”</blockquote><p>That is the spirit we bring to every Arotiana itinerary: considered, personal and rooted in a real respect for Madagascar.</p></div></main><Newsletter /></>;
+}
+
+function splitField(value) {
+  return String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+function ConnectedContact({ custom = false }) {
+  const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError('');
+    setSubmitting(true);
+
+    const form = new FormData(event.currentTarget);
+    const basePayload = {
+      name: String(form.get('name') || '').trim(),
+      email: String(form.get('email') || '').trim(),
+      phone: String(form.get('phone') || '').trim() || undefined,
+    };
+
+    try {
+      if (custom) {
+        const interests = splitField(form.get('travelStyle'));
+        const destinationsList = splitField(form.get('destinations'));
+        const payload = {
+          ...basePayload,
+          startDate: String(form.get('startDate') || '') || undefined,
+          endDate: String(form.get('endDate') || '') || undefined,
+          travelers: Number(form.get('travelers') || 1),
+          budget: form.get('budget') ? Number(form.get('budget')) : undefined,
+          interests: interests.length ? interests : ['Tailor-made travel'],
+          destinations: destinationsList.length ? destinationsList : ['Madagascar'],
+          accommodation: String(form.get('accommodation') || '').trim() || undefined,
+          message: String(form.get('message') || '').trim(),
+        };
+        await apiRequest('/custom-trips', { method: 'POST', body: JSON.stringify(payload) });
+      } else {
+        await apiRequest('/contact', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...basePayload,
+            subject: String(form.get('subject') || '').trim(),
+            message: String(form.get('message') || '').trim(),
+          }),
+        });
+      }
+
+      setSent(true);
+    } catch (submitError) {
+      setError(submitError.message || 'Unable to send your request right now.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return <><ImageHero eyebrow={custom ? 'Made around you' : 'Start a conversation'} title={custom ? 'Your Madagascar,<br /><em>your way.</em>' : 'Let’s plan something<br /><em>extraordinary.</em>'} imageUrl={custom ? siteImages.customHero.image : siteImages.contactHero.image}><p>{custom ? 'Tell us what moves you. We’ll shape the rest together.' : 'Your first conversation with Arotiana starts here.'}</p></ImageHero><main className="form-page section-pad"><div className="form-intro"><p className="eyebrow"><i /> {custom ? 'Create your journey' : 'We are listening'}</p><RichHeading>{custom ? 'Tell us a little<br /><em>about your plans.</em>' : 'The first step<br />is <em>always a conversation.</em>'}</RichHeading><p>Share a few details and our team will come back to you with thoughtful ideas, not a generic itinerary.</p><a href="mailto:bonjour@arotiana.mg">bonjour@arotiana.mg</a><br /><a href="tel:+261340000000">+261 (0) 34 00 000 00</a></div>{sent ? <div className="form-success"><span>✓</span><h2>Thank you.</h2><p>We have received your message and will be in touch soon.</p><Button href="/">Back to home</Button></div> : <form className="trip-form" onSubmit={handleSubmit}><div className="form-row"><label>Name<input name="name" required placeholder="Your name" /></label><label>Email<input name="email" required type="email" placeholder="you@example.com" /></label></div><div className="form-row"><label>Phone<input name="phone" placeholder="+33 6 00 00 00 00" /></label>{custom ? <label>Start date<input name="startDate" type="date" /></label> : <label>Subject<input name="subject" required placeholder="How can we help?" /></label>}</div>{custom && <><div className="form-row"><label>End date<input name="endDate" type="date" /></label><label>Number of travelers<select name="travelers" defaultValue="2" required><option value="1">1</option><option value="2">1-2</option><option value="4">3-5</option><option value="6">6+</option></select></label></div><div className="form-row"><label>Travel style<select name="travelStyle" defaultValue="Wildlife & nature" required><option>Wildlife & nature</option><option>Culture & connection</option><option>Adventure</option><option>Slow & restorative</option></select></label><label>Budget<input name="budget" type="number" min="0" step="100" placeholder="2500" /></label></div><label>Preferred destinations<input name="destinations" placeholder="Andasibe, Isalo, the coast..." /></label><label>Accommodation<input name="accommodation" placeholder="Eco lodge, boutique hotel, luxury camp..." /></label></>}<label>Tell us about your journey<textarea name="message" rows="5" required minLength="10" placeholder="What would make this trip meaningful to you?" /></label>{error && <p className="form-error">{error}</p>}<button className="button" type="submit" disabled={submitting}>{submitting ? 'Sending...' : custom ? 'Create my journey' : 'Send message'} <Arrow /></button></form>}</main></>;
+}
+
+function ConnectedApp() {
+  const [path, setPath] = useState(window.location.pathname);
+
+  useEffect(() => {
+    const onPop = () => setPath(window.location.pathname);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  let content;
+  const match = path.match(/^\/(destinations|experiences|journeys)\/([^/]+)$/);
+  const articleMatch = path.match(/^\/journal\/([^/]+)$/);
+
+  if (path === '/') content = <Home />;
+  else if (path === '/destinations' || path === '/experiences' || path === '/journeys') content = <ListingPage type={path.slice(1)} />;
+  else if (match) content = <DetailPage type={match[1]} slug={match[2]} />;
+  else if (path === '/about') content = <About />;
+  else if (path === '/journal') content = <Journal />;
+  else if (articleMatch) content = <ArticlePage slug={articleMatch[1]} />;
+  else if (path === '/contact') content = <ConnectedContact />;
+  else if (path === '/custom-trip') content = <ConnectedContact custom />;
+  else content = <Home />;
+
+  return <><Navbar />{content}<Footer /></>;
+}
+
+export default ConnectedApp;

@@ -1,0 +1,247 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum RequestStatus {
+  NEW
+  IN_PROGRESS
+  RESPONDED
+  CLOSED
+}
+
+enum MessageStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String    @unique
+  passwordHash String
+  phone        String?
+  role         Role      @default(USER)
+  bookings     Booking[]
+  customTrips  CustomTripRequest[]
+  reviews      Review[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([role])
+  @@index([createdAt])
+}
+
+model Destination {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  description      String
+  region           String
+  shortDescription String
+  featured         Boolean  @default(false)
+  image            String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([region])
+  @@index([featured])
+  @@index([slug])
+}
+
+model Experience {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String
+  category    String
+  duration    String
+  difficulty  String
+  priceFrom   Decimal  @db.Decimal(10, 2)
+  image       String
+  featured    Boolean  @default(false)
+  reviews     Review[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([difficulty])
+  @@index([featured])
+  @@index([slug])
+}
+
+model Journey {
+  id               String      @id @default(cuid())
+  title            String
+  slug             String      @unique
+  description      String
+  shortDescription String
+  duration         Int
+  priceFrom        Decimal     @db.Decimal(10, 2)
+  featured         Boolean     @default(false)
+  image            String
+  itineraries      Itinerary[]
+  bookings         Booking[]
+  reviews          Review[]
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([featured])
+  @@index([priceFrom])
+  @@index([slug])
+}
+
+model Itinerary {
+  id          String  @id @default(cuid())
+  journeyId   String
+  journey     Journey @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  day         Int
+  title       String
+  description String
+  location    String
+
+  @@unique([journeyId, day])
+  @@index([journeyId])
+}
+
+model Booking {
+  id                String        @id @default(cuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journeyId          String
+  journey            Journey       @relation(fields: [journeyId], references: [id], onDelete: Restrict)
+  numberOfTravelers Int
+  startDate          DateTime
+  endDate            DateTime
+  status             BookingStatus @default(PENDING)
+  totalPrice         Decimal       @db.Decimal(10, 2)
+  specialRequests    String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([journeyId])
+  @@index([status])
+  @@index([startDate])
+}
+
+model CustomTripRequest {
+  id            String        @id @default(cuid())
+  userId        String?
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name          String
+  email         String
+  phone         String?
+  startDate     DateTime?
+  endDate       DateTime?
+  travelers     Int
+  budget        Decimal?      @db.Decimal(10, 2)
+  interests     String[]
+  destinations  String[]
+  accommodation String?
+  message       String
+  status        RequestStatus @default(NEW)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ContactMessage {
+  id        String        @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    MessageStatus @default(UNREAD)
+  createdAt DateTime      @default(now())
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Article {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  excerpt     String
+  content     String
+  image       String
+  author      String
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([published])
+  @@index([publishedAt])
+  @@index([slug])
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  country   String
+  content   String
+  rating    Int
+  image     String?
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([published])
+  @@index([rating])
+}
+
+model GalleryImage {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  imageUrl    String
+  location    String
+  category    String
+  createdAt   DateTime @default(now())
+
+  @@index([location])
+  @@index([category])
+}
+
+model Review {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journeyId    String?
+  journey      Journey?    @relation(fields: [journeyId], references: [id], onDelete: SetNull)
+  experienceId String?
+  experience   Experience? @relation(fields: [experienceId], references: [id], onDelete: SetNull)
+  rating       Int
+  comment      String
+  approved     Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+
+  @@index([userId])
+  @@index([journeyId])
+  @@index([experienceId])
+  @@index([approved])
+}
